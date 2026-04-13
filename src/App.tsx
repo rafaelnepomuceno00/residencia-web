@@ -58,8 +58,9 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const url = new URL('Planilha_Residencia_Medica.xlsx', import.meta.env.BASE_URL)
-      const res = await fetch(url)
+      const base = import.meta.env.BASE_URL || '/'
+      const path = `${base.endsWith('/') ? base : `${base}/`}Planilha_Residencia_Medica.xlsx`
+      const res = await fetch(path)
       if (!res.ok) throw new Error(`Falha ao baixar planilha (${res.status})`)
       const buf = await res.arrayBuffer()
       await loadFromArrayBuffer(buf, { persist: true })
