@@ -1,6 +1,8 @@
 import './App.css'
 import { useEffect, useMemo, useState } from 'react'
-import { DataTable } from './components/DataTable'
+import * as XLSX from 'xlsx'
+import { CrudTable } from './components/CrudTable'
+import { clearPersisted, loadPersisted, savePersisted } from './lib/storage'
 import { loadWorkbookFromArrayBuffer, parseTableFromSheet, type SheetTable } from './lib/xlsxResidencia'
 
 function App() {
@@ -8,6 +10,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tables, setTables] = useState<Record<string, SheetTable>>({})
+  const [hydrated, setHydrated] = useState(false)
 
   const tabs = useMemo(
     () => [
@@ -59,7 +62,7 @@ function App() {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`Falha ao baixar planilha (${res.status})`)
       const buf = await res.arrayBuffer()
-      await loadFromArrayBuffer(buf)
+      await loadFromArrayBuffer(buf, { persist: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro desconhecido')
     } finally {
@@ -67,7 +70,7 @@ function App() {
     }
   }
 
-  async function loadFromArrayBuffer(buf: ArrayBuffer) {
+  async function loadFromArrayBuffer(buf: ArrayBuffer, opts?: { persist?: boolean }) {
     const wb = await loadWorkbookFromArrayBuffer(buf)
     const next: Record<string, SheetTable> = {}
     for (const tab of tabs) {
@@ -78,14 +81,50 @@ function App() {
       })
     }
     setTables(next)
+    if (opts?.persist) savePersisted(next)
   }
 
   useEffect(() => {
-    loadDefaultWorkbook()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 1) tenta carregar dados já editados/salvos
+    const persisted = loadPersisted()
+    if (persisted?.tables && Object.keys(persisted.tables).length) {
+      setTables(persisted.tables)
+      setHydrated(true)
+      return
+    }
+
+    // 2) senão, faz seed a partir do XLSX padrão
+    loadDefaultWorkbook().finally(() => setHydrated(true))
   }, [])
 
   const current = tables[active]
+  const currentTab = tabs.find((t) => t.key === active)
+
+  function updateCurrentRows(nextRows: SheetTable['rows']) {
+    if (!current) return
+    const nextTables: Record<string, SheetTable> = {
+      ...tables,
+      [active]: { ...current, rows: nextRows },
+    }
+    setTables(nextTables)
+    savePersisted(nextTables)
+  }
+
+  function exportXlsx() {
+    const wb = XLSX.utils.book_new()
+    for (const tab of tabs) {
+      const t = tables[tab.key]
+      if (!t) continue
+      const exportRows = t.rows.map((r) => {
+        const obj: Record<string, unknown> = {}
+        for (const c of t.columns) obj[c] = r[c]
+        return obj
+      })
+      const ws = XLSX.utils.json_to_sheet(exportRows, { header: t.columns })
+      XLSX.utils.book_append_sheet(wb, ws, tab.sheetName)
+    }
+    XLSX.writeFile(wb, 'Residencia_Medica_Dados.xlsx')
+  }
 
   return (
     <div className="app">
@@ -99,7 +138,7 @@ function App() {
 
         <div className="app__actions">
           <button className="btn" onClick={loadDefaultWorkbook} disabled={loading}>
-            Recarregar padrão
+            Restaurar modelo
           </button>
           <label className="btn btn--secondary">
             Importar XLSX…
@@ -113,7 +152,7 @@ function App() {
                 setError(null)
                 try {
                   const buf = await f.arrayBuffer()
-                  await loadFromArrayBuffer(buf)
+                  await loadFromArrayBuffer(buf, { persist: true })
                 } catch (err) {
                   setError(err instanceof Error ? err.message : 'Erro desconhecido')
                 } finally {
@@ -123,6 +162,19 @@ function App() {
               }}
             />
           </label>
+          <button className="btn" onClick={exportXlsx} disabled={!hydrated || !Object.keys(tables).length}>
+            Exportar XLSX
+          </button>
+          <button
+            className="btn btn--secondary"
+            onClick={() => {
+              clearPersisted()
+              setTables({})
+              loadDefaultWorkbook()
+            }}
+          >
+            Zerar dados
+          </button>
         </div>
       </header>
 
@@ -142,16 +194,21 @@ function App() {
         {error ? <div className="alert alert--error">{error}</div> : null}
         {loading ? <div className="alert">Carregando…</div> : null}
 
-        {!loading && current ? (
-          <DataTable columns={current.columns} rows={current.rows} />
+        {!loading && current && currentTab ? (
+          <CrudTable
+            title={currentTab.label}
+            columns={current.columns}
+            rows={current.rows}
+            onChange={updateCurrentRows}
+          />
         ) : !loading ? (
           <div className="alert">Nenhum dado carregado.</div>
         ) : null}
       </main>
 
       <footer className="app__footer">
-        Dica: você pode subir a planilha atualizada no botão “Importar XLSX…” e usar os
-        filtros de busca para encontrar rapidamente “Disciplina”, “Tema”, “Status”, etc.
+        Agora o app funciona como seu “banco de dados”: adicione/edite/exclua linhas em cada
+        aba. Tudo fica salvo no navegador e você pode exportar para XLSX quando quiser.
       </footer>
     </div>
   )

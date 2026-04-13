@@ -3,11 +3,18 @@ import * as XLSX from 'xlsx'
 export type SheetTable = {
   sheetName: string
   columns: string[]
-  rows: Record<string, unknown>[]
+  rows: Row[]
 }
+
+export type Row = Record<string, unknown> & { _id: string }
 
 function isRowEmpty(row: unknown[]) {
   return row.every((v) => v === null || v === undefined || v === '')
+}
+
+export function newId() {
+  // id curto e único o suficiente para uso local
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 function excelSerialToDate(serial: number): Date | null {
@@ -56,7 +63,7 @@ export function parseTableFromSheet(params: {
   // Normaliza colunas vazias para não gerar keys tipo "".
   const columns = headerRow.map((h, idx) => (h ? h : `Coluna ${idx + 1}`))
 
-  const rows: Record<string, unknown>[] = []
+  const rows: Row[] = []
   for (let r = headerRowIndex + 1; r < matrix.length; r++) {
     const row = matrix[r] ?? []
     if (isRowEmpty(row)) continue
@@ -65,7 +72,7 @@ export function parseTableFromSheet(params: {
     for (let c = 0; c < columns.length; c++) {
       obj[columns[c]!] = row[c] ?? null
     }
-    rows.push(obj)
+    rows.push({ _id: newId(), ...obj })
   }
 
   return { sheetName, columns, rows }
@@ -73,5 +80,26 @@ export function parseTableFromSheet(params: {
 
 export async function loadWorkbookFromArrayBuffer(data: ArrayBuffer): Promise<XLSX.WorkBook> {
   return XLSX.read(data, { type: 'array' })
+}
+
+export function coerceInputToValue(raw: string): unknown {
+  const s = raw.trim()
+  if (s === '') return null
+
+  // Percentual tipo "73%" -> 0.73 (pra manter compatível com a planilha)
+  const pct = s.match(/^(-?\d+(?:[.,]\d+)?)\s*%$/)
+  if (pct) {
+    const n = Number(pct[1]!.replace(',', '.'))
+    return Number.isFinite(n) ? n / 100 : raw
+  }
+
+  // Número normal
+  const num = s.match(/^-?\d+(?:[.,]\d+)?$/)
+  if (num) {
+    const n = Number(s.replace(',', '.'))
+    return Number.isFinite(n) ? n : raw
+  }
+
+  return raw
 }
 

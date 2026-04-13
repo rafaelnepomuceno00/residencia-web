@@ -57,6 +57,10 @@
   background: color-mix(in srgb, var(--accent) 10%, var(--panel));
 }
 
+.btn--secondary:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
 .btn input[type='file'] {
   display: none;
 }
