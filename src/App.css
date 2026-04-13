@@ -42,6 +42,7 @@
   border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
+  line-height: 1.1;
 }
 
 .btn:hover {
@@ -70,6 +71,8 @@
   gap: 8px;
   overflow: auto;
   padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .tab {
@@ -113,4 +116,42 @@
   font-size: 13px;
   border-top: 1px solid var(--border);
   padding-top: 12px;
+}
+
+@media (max-width: 720px) {
+  .app {
+    padding: 14px 12px 22px;
+  }
+
+  .app__header {
+    align-items: stretch;
+  }
+
+  .app__actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Deixa o topo mais “mobile”: 2 colunas de botões */
+  .app__actions > .btn,
+  .app__actions > label.btn {
+    flex: 1 1 calc(50% - 8px);
+    text-align: center;
+  }
+
+  .tabs {
+    padding-bottom: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app__actions > .btn,
+  .app__actions > label.btn {
+    flex: 1 1 100%;
+  }
 }

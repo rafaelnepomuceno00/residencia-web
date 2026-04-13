@@ -44,6 +44,8 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .crud__table {
@@ -71,6 +73,16 @@
 .crud__actionsCol {
   width: 160px;
   white-space: nowrap;
+}
+
+/* Coluna de ações fixa (melhor em scroll horizontal) */
+.crud__table thead th.crud__actionsCol,
+.crud__table tbody td.crud__actionsCol {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--panel);
+  box-shadow: 1px 0 0 var(--border);
 }
 
 .crud__thbtn {
@@ -170,5 +182,53 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .crud__table {
+    min-width: 900px;
+  }
+}
+
+@media (max-width: 720px) {
+  .crud__header {
+    align-items: stretch;
+  }
+
+  .crud__actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .crud__search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .crud__table {
+    min-width: 760px;
+  }
+
+  .crud__table th,
+  .crud__table td {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  .crud__actionsCol {
+    width: 140px;
+  }
+
+  .btn--tiny {
+    padding: 7px 10px;
+    font-size: 12px;
+    margin-right: 6px;
+  }
+}
+
+@media (max-width: 420px) {
+  .crud__table {
+    min-width: 680px;
+  }
 }
 
